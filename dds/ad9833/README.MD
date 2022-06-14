@@ -14,10 +14,10 @@
 CONNECTION
 --------
 AD9833 PCB to Pro Trinket board:
-DAT --> pin 11 (MOSI) [note: pin 12 is MISO]
-CLK --> pin 13 (SCK)
-FSY --> pin A0 (AD9833 SS)
-CS --> pin A1 (MCP41010i SS)
+- DAT --> pin 11 (MOSI) [note: pin 12 is MISO]
+- CLK --> pin 13 (SCK)
+- FSY --> pin A0 (AD9833 SS)
+- CS --> pin A1 (MCP41010i SS)
   
 AD9833 PCB OVERVIEW
 --------
