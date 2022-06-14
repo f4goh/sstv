@@ -14,7 +14,7 @@ beware BMP images must be :
  
 - 320 x 256 for low res
 
-- 640 x 496 for low res
+- 640 x 496 for high res
 
 esp32 directory :
 
