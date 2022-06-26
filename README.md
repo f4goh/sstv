@@ -24,11 +24,14 @@ send a sstv card to the anaglog outpout
 	
 dss_output_card :
 	
-todo with an ad9833 hardware DDS (soon)
+with an ad9850 hardware DDS and irq
 
 miscellaneous:
 
 test program sending tone on sound card output
+
+convert image to RGB565 format
+
 	
 
 
