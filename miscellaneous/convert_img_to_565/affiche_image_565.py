@@ -76,12 +76,57 @@ def affiche_image(data):
 
 
 
+"""
+YUV422 looks like YUYV, where this is definition for 2 pixels,
+so it become Y0 U0 Y1 V0, where Y0U0V0 is for pixel1 and Y1U0V0 for pixel2
+"""
 
-#data=lire_image_565("photo14.565")
-#affiche_image(data)
+def test(coul):
+    if coul>255:
+        return 255
+    if coul<0:
+        return 0
+    return int(coul)
+
+def pixelYUV2RGB(Y, U, V):
+    RY=V
+    BY=U
+    #R = test(Y + 1.4075 * (V - 128))
+    #G = test(Y - 0.3455 * (U - 128) - (0.7169 * (V - 128)))
+    #B = test(Y + 1.7790 * (U - 128))
+    R = test(0.003906 * ((298.082 * (Y - 16.0)) + (408.583 * (RY - 128.0))))
+    G = test(0.003906 * ((298.082 * (Y - 16.0)) + (-100.291 * (BY - 128.0)) + (-208.12 * (RY - 128.0))))
+    B = test(0.003906 * ((298.082 * (Y - 16.0)) + (516.411 * (BY - 128.0))))
+
+    return R,G,B
+
+
+
+
+def affiche_image_yuv(data):
+    idx=0
+    img=Image.new('RGB',(LARGEUR,HAUTEUR),(0,0,0))
+    for y in range(HAUTEUR):
+        for x in range(LARGEUR//2):
+            Y0=data[idx]
+            U=data[idx+1] #BY
+            Y1=data[idx+2]
+            V=data[idx+3] #RY
+            idx+=4
+            coulP1=pixelYUV2RGB(Y0,U,V)
+            coulP2=pixelYUV2RGB(Y1,U,V)
+            img.putpixel((x*2,y),coulP1)
+            img.putpixel((x*2+1,y),coulP2)
+    img.show()
+    img.save("essai14.png")
+
+
+
+data=lire_image_565("photo1.yuv")
+affiche_image_yuv(data)
 #affiche_hexa(data)
 
 #conversion_img_565("ballon.png","image.h")
-conversion_img_565("ligneMire640.png","mire.h")
+#conversion_img_565("ligneMire640.png","mire.h")
 
 
