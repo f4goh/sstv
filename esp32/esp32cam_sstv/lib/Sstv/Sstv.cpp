@@ -3,6 +3,9 @@
  * Author: ale
  * 
  * Created on 19 septembre 2021, 11:50
+ * doc
+ * https://github.com/xdsopl/qsstv/tree/master/qsstv/sstv
+ * https://github.com/brainwagon/sstv-encoders
  * 
  */
 
@@ -162,7 +165,46 @@ const SSTVMode_t PasokonP7{
     }
 };
 
+const SSTVMode_t Robot72{
+    SSTV_ROBOT_72,
+    320,
+    240,
+    431,
+    9,
+    {
+        {GENERIC, 9000, 1200},
+        {GENERIC, 3000, 1500},
+        {SCAN_Y, 0, 0},
+        {GENERIC, 4500, 1500},
+        {GENERIC, 1500, 1900},
+        {SCAN_R_Y, 0, 0},
+        {GENERIC, 4500, 2300},
+        {GENERIC, 1500, 1500},
+        {SCAN_B_Y, 0, 0}        
+    }
+};
 
+const SSTVMode_t Robot36{
+    SSTV_ROBOT_36,
+    320,
+    240,
+    275,
+    12,
+    {
+        {GENERIC, 9000, 1200},
+        {GENERIC, 3000, 1500},
+        {SCAN_Y_EVEN, 0, 0},
+        {GENERIC, 4500, 1500},
+        {GENERIC, 1500, 1900},
+        {SCAN_R_Y, 0, 0},
+        {GENERIC, 9000, 1200},
+        {GENERIC, 3000, 1500},
+        {SCAN_Y_ODD, 0, 0},
+        {GENERIC, 4500, 2300},
+        {GENERIC, 1500, 1500},
+        {SCAN_B_Y, 0, 0}        
+    }
+};
 
 Sstv::Sstv() :
 timer(NULL)
@@ -171,7 +213,7 @@ timer(NULL)
  //pinMode(SYNC,OUTPUT);
  anchor = this;
  timer = timerBegin(0, 80, true);
- timerAttachInterrupt(timer, Sstv::marshall, true);
+ timerAttachInterrupt(timer, Sstv::marshall, true); 
 }
 
 Sstv::Sstv(const Sstv& orig) {
@@ -203,6 +245,7 @@ void Sstv::tx(const SSTVMode_t &_mode) {
 
 
 void Sstv::idle() {
+  begin();
   setfreq(FREQ + SSTV_TONE_BREAK,0);
 }
 
@@ -273,7 +316,7 @@ void Sstv::sendHeader() {
             imgtype : type de transmission enum  PROG_MEM ou CAMERA
  */
 
-void Sstv::sendLine(int idxLine,uint8_t *ptr,imageType imgtype) {
+void Sstv::sendLineRGB(int idxLine,uint8_t *ptr,imageType imgtype) {
   // check first line flag in Scottie modes
     if (firstLine && ((mode.visCode == SSTV_SCOTTIE_1) || (mode.visCode == SSTV_SCOTTIE_2) || (mode.visCode == SSTV_SCOTTIE_DX))) {
         firstLine = false;
@@ -294,7 +337,7 @@ void Sstv::sendLine(int idxLine,uint8_t *ptr,imageType imgtype) {
                     if (idxLine >= 0) {
                         color = pgm_read_word(&(imageTest[idxLine + j]));
                     } else {
-                        color = pgm_read_word(&(mire[j % 320]));
+                        color = pgm_read_word(&(mireRGB[j % 320]));
                     }
                 } else {
                     color = (ptr[j * 2] << 8) + ptr[j * 2 + 1]; //ici récup word pixel msb+lsb   
@@ -317,6 +360,84 @@ void Sstv::sendLine(int idxLine,uint8_t *ptr,imageType imgtype) {
                 }
                 toneUs(SSTV_TONE_BRIGHTNESS_MIN + ((float) color * 3.1372549), mode.scanPixelLen);
             }
+        }
+    }
+}
+//            BY    RY
+//YUV422 = Y0 U0 Y1 V0
+
+void Sstv::sendLineYUV(int idxLine,uint8_t *ptr,imageType imgtype) {
+    // send all tones in sequence
+    uint16_t color = 0;
+    for (uint8_t i = 0; i < mode.numTones; i++) {
+        if ((mode.tones[i].tt == GENERIC) && (mode.tones[i].len > 0)) {
+            // sync/porch tones
+            toneUs(mode.tones[i].freq, mode.tones[i].len);
+        } else {
+            // scan lines
+            if (mode.visCode == SSTV_ROBOT_72) {
+                switch (mode.tones[i].tt) {
+                    case(SCAN_Y):
+                        for (uint16_t j = 0; j < mode.width; j++) {
+                            if (imgtype == PROG_MEM) color = pgm_read_word(&(mireYUV[j])) >> 8;  //mire
+                            else color = ptr[j * 2];                                             //camera
+                            toneUs(SSTV_TONE_BRIGHTNESS_MIN + ((float) color * 3.1372549), mode.scanPixelLen);
+                        }
+                        break;
+                    case(SCAN_R_Y):
+                        for (uint16_t j = 0; j < mode.width / 2; j++) {
+                            if (imgtype == PROG_MEM) color = pgm_read_word(&(mireYUV[j*2+1])) & 0xff;
+                            else color = ptr[j * 4 + 3];
+                            toneUs(SSTV_TONE_BRIGHTNESS_MIN + ((float) color * 3.1372549), mode.scanPixelLen);
+                        }
+                        break;
+                    case(SCAN_B_Y):
+                        for (uint16_t j = 0; j < mode.width / 2; j++) {                            
+                            if (imgtype == PROG_MEM) color = pgm_read_word(&(mireYUV[j*2])) & 0xff;                           
+                            else color = ptr[j * 4 + 1];
+                            toneUs(SSTV_TONE_BRIGHTNESS_MIN + ((float) color * 3.1372549), mode.scanPixelLen);
+                        }
+                        break;
+                    case(GENERIC):
+                        break;
+                }
+            }
+            if (mode.visCode == SSTV_ROBOT_36) {
+                switch (mode.tones[i].tt) {
+                    case(SCAN_Y_EVEN):
+                        for (uint16_t j = 0; j < mode.width; j++) {
+                            if (imgtype == PROG_MEM) color = pgm_read_word(&(mireYUV[j])) >> 8;  //mire
+                            else color = ptr[j * 2];                                             //ligne paire
+                            toneUs(SSTV_TONE_BRIGHTNESS_MIN + ((float) color * 3.1372549), mode.scanPixelLen);
+                        }
+                        break;
+                    case(SCAN_R_Y):
+                        for (uint16_t j = 0; j < mode.width / 2; j++) {
+                            if (imgtype == PROG_MEM) color = pgm_read_word(&(mireYUV[j*2+1])) & 0xff;
+                            else color = (ptr[j * 4 + 3] + ptr[mode.width * 2 + j * 4 + 3]) / 2;  //moyenne des 2 V0 verticale
+                            toneUs(SSTV_TONE_BRIGHTNESS_MIN + ((float) color * 3.1372549), mode.scanPixelLen);
+                        }
+                        break;
+                    case(SCAN_Y_ODD):
+                        for (uint16_t j = 0; j < mode.width; j++) {
+                            if (imgtype == PROG_MEM) color = pgm_read_word(&(mireYUV[j])) >> 8;   
+                            else color = ptr[mode.width * 2 + j * 2];    //ligne impaire
+                            toneUs(SSTV_TONE_BRIGHTNESS_MIN + ((float) color * 3.1372549), mode.scanPixelLen);
+                        }
+                        break;
+                    case(SCAN_B_Y):
+                        for (uint16_t j = 0; j < mode.width / 2; j++) {
+                            if (imgtype == PROG_MEM) color = pgm_read_word(&(mireYUV[j*2])) & 0xff;    
+                            else color = (ptr[j * 4 + 1] + ptr[mode.width * 2 + j * 4 + 1]) / 2; //moyenne des 2 U0 verticale
+                            toneUs(SSTV_TONE_BRIGHTNESS_MIN + ((float) color * 3.1372549), mode.scanPixelLen);
+                        }
+                        break;
+                    case(GENERIC):
+                        break;
+                }
+            }
+
+
         }
     }
 }
@@ -355,48 +476,133 @@ void IRAM_ATTR Sstv::interuption() {
    @details envoie une mire
  */
 
-void Sstv::sendMire(){
-   Serial.println(F("[SSTV] Sending mire  picture ... "));
+void Sstv::sendMire(modeCoul mCoul){
+   Serial.print(F("[SSTV] Sending mire  picture ... "));
     sendHeader(); // send synchronization header first
-    // send all picture lines
-    for (uint16_t i = 0; i < mode.height; i++) {    
-        sendLine(-1,NULL,PROG_MEM);  //for pattern
+    // send pattern lines
+     uint16_t i;
+    if (mCoul == YUV) {
+        Serial.println(F("YUV"));
+        if (mode.visCode == SSTV_ROBOT_72) {
+            for (i = 0; i < mode.height; i++) {
+                 sendLineYUV(-1, NULL, PROG_MEM); //for pattern                
+            }
+        }
+        if (mode.visCode == SSTV_ROBOT_36) {
+            for (i = 0; i < mode.height / 2; i++) {
+                 sendLineYUV(-1, NULL, PROG_MEM); //for pattern                
+            }
+        }
     }
+    if (mCoul == RGB) {
+        Serial.println(F("RGB"));
+        for (i = 0; i < mode.height; i++) {
+            sendLineRGB(-1, NULL, PROG_MEM); //for pattern
+        }
+    }
+    
     standby(); // turn off transmitter
-    Serial.println(F("done!"));      
+    Serial.println(F("done!"));   
+    //down();
 }
 
 /**
    @brief   Sstv::sendImg()
-   @details envoie une image en progmem
+   @details envoie une image test depuis la progmem en RGB seulement
  */
 
 
 void Sstv::sendImg() {
-    Serial.println(F("[SSTV] Sending test image picture ... "));
+    Serial.println(F("[SSTV] Sending RGB test image picture ... "));
     sendHeader(); // send synchronization header first
     // send all picture lines    
     int idxLine=0;
     for (uint16_t i = 0; i < mode.height; i++) {    
-        sendLine(idxLine,NULL,PROG_MEM);   // for progmem image
+        sendLineRGB(idxLine,NULL,PROG_MEM);   // for progmem image
         idxLine+=mode.width;
     }
     standby(); // turn off transmitter
     Serial.println(F("done!"));
+    //down();
 }
 
-void Sstv::sendCamera(uint8_t *ptr) {
-    Serial.println(F("[SSTV] Sending camera image picture ... "));
+void Sstv::sendCameraRGB(uint8_t *ptr) {
+    Serial.println(F("[SSTV] Sending camera RGB image picture ... "));
     sendHeader(); // send synchronization header first
+    uint16_t i;
     // send all picture lines    
-    for (uint16_t i = 0; i < mode.height; i++) {    
-        sendLine(0,ptr,CAMERA);
+    for (uint16_t i = 0; i < mode.height-16; i++) {    
+        sendLineRGB(0,ptr,CAMERA);
         ptr+=mode.width*2;  //2 octets par pixels
+    }
+    for ( i = 0; i < 16; i++) {    
+         sendLineRGB(-1,NULL,PROG_MEM);  //for pattern       
     }
     standby(); // turn off transmitter
     Serial.println(F("done!"));
+    //down();
 }
 
+void Sstv::sendCameraYUV(uint8_t *ptr) {
+    Serial.println(F("[SSTV] Sending camera YUV image picture ... "));
+    sendHeader(); // send synchronization header first
+    uint16_t i;
+    // send all picture lines
+    if (mode.visCode == SSTV_ROBOT_72) {
+        for (i = 0; i < mode.height; i++) {
+            sendLineYUV(0,ptr, CAMERA);
+            ptr += mode.width * 2; //2 octets par pixels
+        }
+    }
+    if (mode.visCode == SSTV_ROBOT_36) {
+        for (i = 0; i < mode.height/2; i++) {
+            sendLineYUV(0,ptr,CAMERA);
+            ptr += mode.width * 4; //2 octets par pixels et toutes les 2 lignes
+        }
+    }
+    standby(); // turn off transmitter
+    Serial.println(F("done!"));
+    //down();
+}
+
+
+bool Sstv::playFmSample() {
+
+    String path = "/f4kmn.raw";
+    int cpt = 0;
+    int8_t* samp = (int8_t*)ps_malloc(20000);
+    
+    File file = SDFileSystem.open(path.c_str(), FILE_READ);
+
+    if (!file) {
+        Serial.println("Failed to open file in writing mode");
+        return false;
+    } else {
+        while (file.available()) {
+            samp[cpt] = file.read();
+            cpt++;
+        }
+        file.close();
+        Serial.println(F("read done!"));
+        delay(100);  //a diminuer ?
+        begin();
+        irqDone = 0;
+        timerAlarmWrite(timer, 1000, true);
+        timerAlarmEnable(timer);
+        timerMux = portMUX_INITIALIZER_UNLOCKED;
+        for (cpt = 0; cpt < 20000; cpt++) {            
+            toneUs(((float) samp[cpt])*40, 125); //Tech=125µs->8000hz     Coef 10000khz / 256 (8 bits) =39.6
+        }
+        standby(); // turn off transmitter
+        
+        Serial.println(F("play done!"));
+        free(samp);
+
+    }
+   
+
+    return true;
+}
 
 
 Sstv* Sstv::anchor = NULL;

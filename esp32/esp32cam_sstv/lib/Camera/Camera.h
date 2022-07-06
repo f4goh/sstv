@@ -10,8 +10,7 @@
 
 #include <Arduino.h>
 #include <esp_camera.h>
-#include <soc/soc.h>          // Disable brownour problems
-#include <soc/rtc_cntl_reg.h> // Disable brownour problems
+
 #include <FS.h>     // SD Card ESP32
 #include <SD.h> // SD Card ESP32
 
@@ -36,26 +35,44 @@
 
 #define LED_ROUGE 33
 
-
 class Camera {
+    
 public:
     Camera();
-    Camera(const Camera& orig);
-    virtual ~Camera();
+    // la Camera n'est pas clonable
+    Camera(const Camera& orig) = delete;
+    // la Camera n'est pas assignable
+    void operator=(const Camera &) = delete;
     
+    virtual ~Camera();
+
     bool init(pixformat_t pixFormat = PIXFORMAT_JPEG, framesize_t size = FRAMESIZE_SVGA);
-    bool capturePhotoSaveSD(String name = "picture");
-    bool capturePhotoSstv();
+    bool SDinit();
+    
+    void vflip();
+    void hmirror();
+    void setContrast(int level);
+    void setFrameSize(framesize_t framesize);
+
+   
+    bool SaveSD(String name = "picture", String ext = "jpg");
+    bool capturePhoto();
+    
     uint8_t * getBuf();
+    size_t getLen();
+    size_t getwidth();
+    size_t getheight();
     
     void flash(int N);
     
-    
+    void reset(byte tick = 1);
+
+
 private:
     camera_fb_t *fb;
+    sensor_t *s;
     int count;
 
 };
 
 #endif /* CAMERA_H */
-

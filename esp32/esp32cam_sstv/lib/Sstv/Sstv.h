@@ -15,6 +15,8 @@
 
 #ifndef SSTV_H
 #define SSTV_H
+#include <FS.h>     // SD Card ESP32
+#include <SD.h> // SD Card ESP32
 #include "AD9850SPI.h"
 #include "image.h"
 #include "mire.h"
@@ -33,6 +35,9 @@
 #define SSTV_PASOKON_P3                               113
 #define SSTV_PASOKON_P5                               114
 #define SSTV_PASOKON_P7                               115
+#define SSTV_ROBOT_72                                 12
+#define SSTV_ROBOT_36                                 8
+
 
 // SSTV tones in Hz
 #define SSTV_TONE_LEADER                              1900
@@ -56,13 +61,24 @@ typedef enum {                //brief Tone type: GENERIC for sync and porch tone
     GENERIC = 0,
     SCAN_GREEN,
     SCAN_BLUE,
-    SCAN_RED
+    SCAN_RED,
+    SCAN_Y,
+    SCAN_Y_EVEN,
+    SCAN_Y_ODD,
+    SCAN_R_Y,
+    SCAN_B_Y            
 } toneType;
 
 typedef enum {
     PROG_MEM = 0,
     CAMERA
 } imageType;
+
+typedef enum {
+    RGB = 0,
+    YUV
+} modeCoul;
+
 
 typedef struct  {
   toneType tt;
@@ -80,7 +96,7 @@ typedef struct  {
   uint16_t height; //brief Picture height in pixels.
   uint16_t scanPixelLen; //brief Pixel scan length in us.
   uint8_t numTones; //brief Number of tones in each transmission line. Picture scan data is considered single tone.
-  tone_t tones[8]; //brief Sequence of tones in each transmission line. This is used to create the correct encoding sequence.
+  tone_t tones[12]; //brief Sequence of tones in each transmission line. This is used to create the correct encoding sequence.
 }SSTVMode_t;
 
 extern const SSTVMode_t Scottie1;
@@ -92,6 +108,8 @@ extern const SSTVMode_t Wrasse;
 extern const SSTVMode_t PasokonP3;
 extern const SSTVMode_t PasokonP5;
 extern const SSTVMode_t PasokonP7;
+extern const SSTVMode_t Robot72;
+extern const SSTVMode_t Robot36;
 
 
 class Sstv : public AD9850SPI  
@@ -104,12 +122,15 @@ public:
     void idle();
     void toneUs(float freq, uint32_t len);    
     void sendHeader();    
-    void sendLine(int idxLine,uint8_t *ptr,imageType imgtype);
+    void sendLineRGB(int idxLine,uint8_t *ptr,imageType imgtype);
+    void sendLineYUV(int idxLine,uint8_t *ptr,imageType imgtype);
     void sendLineCamera(uint8_t *ptr);
+    void sendCameraYUV(uint8_t *ptr);
     void standby();
-    void sendMire();
+    void sendMire(modeCoul mCoul);
     void sendImg();
-    void sendCamera(uint8_t *ptr);
+    void sendCameraRGB(uint8_t *ptr);
+    bool playFmSample();
     
     SSTVMode_t mode;
 private:

@@ -100,6 +100,49 @@ def pixelYUV2RGB(Y, U, V):
 
     return R,G,B
 
+def pixelRGB2YUV(R, G, B):
+    Y = test(16.0 + (.003906 * ((65.738 * R) + (129.057 * G) + (25.064 * B))))
+    RY = test(128.0 + (.003906 * ((112.439 * R) + (-94.154 * G) + (-18.285 * B))))
+    BY = test(128.0 + (.003906 * ((-37.945 * R) + (-74.494 * G) + (112.439 * B))))
+    V=RY
+    U=BY
+    return Y,U,V
+
+
+
+def conversion_img_YUV(nom_fic,header_fic):
+    fichier=open(header_fic,"w")
+    img=Image.open(nom_fic)
+    largeur,hauteur=img.size
+    cpt=0
+    buf=[]
+    fichier.write("const static word imageTest["+str(largeur)+"*"+str(hauteur)+"] PROGMEM = {\n")
+    for y in range(hauteur):
+        for x in range(largeur//2):
+            r0,v0,b0=img.getpixel((x*2,y))
+            r1,v1,b1=img.getpixel((x*2+1,y))
+            Y0,U0,V0=pixelRGB2YUV(r0,v0,b0)
+            Y1,U1,V1=pixelRGB2YUV(r1,v1,b1)
+            U=(U0+U1)//2
+            V=(V0+V1)//2
+            word1=Y0*256+U
+            word2=Y1*256+V
+            buf.append(word1)
+            buf.append(word2)
+            fichier.write(hex(word1))
+            fichier.write(',')
+            fichier.write(hex(word2))
+            fichier.write(',')
+            cpt+=1
+            if cpt==40:
+                fichier.write('\n')
+                #print()
+                cpt=0
+    fichier.write("};\n")
+    fichier.close()
+    #img.show()
+    return buf
+
 
 
 
@@ -120,13 +163,31 @@ def affiche_image_yuv(data):
     img.show()
     img.save("essai14.png")
 
+def affiche_mire_yuv(data):
+    img=Image.new('RGB',(320,240),(0,0,0))
+    for y in range(HAUTEUR):
+        idx=0
+        for x in range(LARGEUR//2):
+            Y0=data[idx]>>8
+            U=data[idx] & 0xff #BY
+            Y1=data[idx+1]>>8
+            V=data[idx+1] & 0xff #RY
+            idx+=2
+            coulP1=pixelYUV2RGB(Y0,U,V)
+            coulP2=pixelYUV2RGB(Y1,U,V)
+            img.putpixel((x*2,y),coulP1)
+            img.putpixel((x*2+1,y),coulP2)
+    img.show()
+    img.save("mire_test.png")
 
 
-data=lire_image_565("photo1.yuv")
-affiche_image_yuv(data)
+
+#data=lire_image_565("photo1.yuv")
+#affiche_image_yuv(data)
 #affiche_hexa(data)
 
 #conversion_img_565("ballon.png","image.h")
-#conversion_img_565("ligneMire640.png","mire.h")
+buf=conversion_img_YUV("ligneMire320.png","mire_yuv.h")
+affiche_mire_yuv(buf)
 
 
