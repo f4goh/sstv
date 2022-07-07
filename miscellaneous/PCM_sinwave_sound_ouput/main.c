@@ -16,6 +16,7 @@
  * https://www.alsa-project.org/alsa-doc/alsa-lib/_2test_2pcm_min_8c-example.html
  * apt-get install libasound2-dev
  * locate asoundlib.h
+ * voir fichier sound.h avec le #include <alsa/asoundlib.h>
  */
 
 #include <stdio.h>

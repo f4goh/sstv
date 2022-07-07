@@ -1,15 +1,16 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
 /* 
  * File:   main.cpp
  * Author: ale
  *
  * 
  *  * Created on 22 septembre 2021, 09:39
+ * ajouter dans le linker additional Options : -lasound -lm
+ * https://www.alsa-project.org/alsa-doc/alsa-lib/pcm.html
+ * https://gist.github.com/ghedo/963382/
+ * https://soundprogramming.net/programming/alsa-tutorial-1-initialization/
+ * https://www.alsa-project.org/alsa-doc/alsa-lib/_2test_2pcm_min_8c-example.html
+ * apt-get install libasound2-dev
+ * locate asoundlib.h
  */
 
 #include <cstdlib>
