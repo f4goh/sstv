@@ -37,20 +37,32 @@
 #define SSTV_PASOKON_P7                               115
 #define SSTV_ROBOT_72                                 12
 #define SSTV_ROBOT_36                                 8
+#define SSTV_PD_50                                    93
+#define SSTV_PD_90                                    99
+#define SSTV_MP_73_N                                  2
 
+// SSTV tones in Hz common large txing modes
+#define SSTV_TONE_LEADER_L                            1900
+#define SSTV_TONE_BREAK_L                             1200
+#define SSTV_TONE_VIS_1_L                             1100
+#define SSTV_TONE_VIS_0_L                             1300
+#define SSTV_TONE_BRIGHTNESS_MIN_L                    1500
+#define SSTV_TONE_BRIGHTNESS_MAX_L                    2300
 
-// SSTV tones in Hz
-#define SSTV_TONE_LEADER                              1900
-#define SSTV_TONE_BREAK                               1200
-#define SSTV_TONE_VIS_1                               1100
-#define SSTV_TONE_VIS_0                               1300
-#define SSTV_TONE_BRIGHTNESS_MIN                      1500
-#define SSTV_TONE_BRIGHTNESS_MAX                      2300
+// SSTV tones in Hz narrow txing modes
+#define SSTV_TONE_LEADER_N                            2300
+#define SSTV_TONE_BREAK_N                             1900
+#define SSTV_TONE_VIS_1_N                             1900
+#define SSTV_TONE_VIS_0_N                             2100
+#define SSTV_TONE_BRIGHTNESS_MIN_N                    2044
+#define SSTV_TONE_BRIGHTNESS_MAX_N                    2300
+
 
 // calibration header timing in us
 #define SSTV_HEADER_LEADER_LENGTH                     300000
 #define SSTV_HEADER_BREAK_LENGTH                      10000
 #define SSTV_HEADER_BIT_LENGTH                        30000
+#define SSTV_HEADER_END_LENGTH                        100000
 
 
 /*!
@@ -78,6 +90,12 @@ typedef enum {
     RGB = 0,
     YUV
 } modeCoul;
+
+typedef enum {
+    LARGE = 0,
+    NARROW
+} largeNarrow;
+
 
 
 typedef struct  {
@@ -110,6 +128,9 @@ extern const SSTVMode_t PasokonP5;
 extern const SSTVMode_t PasokonP7;
 extern const SSTVMode_t Robot72;
 extern const SSTVMode_t Robot36;
+extern const SSTVMode_t PD50;
+extern const SSTVMode_t PD90;
+extern const SSTVMode_t MP73N;
 
 
 class Sstv : public AD9850SPI  
@@ -121,14 +142,17 @@ public:
     void tx(const SSTVMode_t &_mode);
     void idle();
     void toneUs(float freq, uint32_t len);    
-    void sendHeader();    
+    void sendHeaderNarrow();
+    void sendHeaderStandard(); 
+    void sendEndVis();
     void sendLineRGB(int idxLine,uint8_t *ptr,imageType imgtype);
     void sendLineYUV(int idxLine,uint8_t *ptr,imageType imgtype);
     void sendLineCamera(uint8_t *ptr);
     void sendCameraYUV(uint8_t *ptr);
     void standby();
     void sendMire(modeCoul mCoul);
-    void sendImg();
+    void sendMireNarrow();  //test
+    void sendImg(modeCoul mCoul);
     void sendCameraRGB(uint8_t *ptr);
     bool playFmSample();
     

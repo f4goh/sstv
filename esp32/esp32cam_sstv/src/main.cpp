@@ -66,7 +66,11 @@ void setup() {
     Serial.println("9 Mode PasokonP7");    
     Serial.println("a Mode Robot36 YUV");    
     Serial.println("b Mode Robot72 YUV");    
-    Serial.println("c tx picture with camera");
+    Serial.println("c Mode PD50 YUV");    
+    Serial.println("d Mode PD90 YUV");    
+    Serial.println("e Mode MP73-N YUV");    
+    
+    Serial.println("k tx picture with camera");
     Serial.println("m tx mire RGB or YUV");
     Serial.println("p tx test picture in progmem");
     Serial.println("r save picture on msd card");
@@ -127,8 +131,22 @@ void loop() {
                 Serial.println("Mode Robot72");
                 break;
             case 'c':
+                mode = PD50;
+                Serial.println("Mode PD50");
+                break;
+            case 'd':
+                mode = PD90;
+                Serial.println("Mode PD90");
+                break;
+            case 'e':
+                mode = MP73N;
+                Serial.println("Mode MP73-N");
+                monSstv.tx(mode);
+                monSstv.sendMireNarrow();
+                break;
+            case 'k':
                 laCamera->reset(10);
-                if (mode.visCode == SSTV_ROBOT_36 || mode.visCode == SSTV_ROBOT_72) {
+                if (mode.visCode == SSTV_ROBOT_36 || mode.visCode == SSTV_ROBOT_72 || mode.visCode == SSTV_PD_50 || mode.visCode == SSTV_PD_90) {
                     Serial.println("YUV565 QVGA");
                     laCamera->init(PIXFORMAT_YUV422, FRAMESIZE_QVGA);
                     laCamera->capturePhoto();
@@ -145,16 +163,18 @@ void loop() {
                 break;
             case 'm':
                 monSstv.tx(mode);
-                if (mode.visCode == SSTV_ROBOT_36 || mode.visCode == SSTV_ROBOT_72) {
+                if (mode.visCode == SSTV_ROBOT_36 || mode.visCode == SSTV_ROBOT_72 || mode.visCode == SSTV_PD_50 || mode.visCode == SSTV_PD_90) {
                     monSstv.sendMire(YUV);
                 } else {
                     monSstv.sendMire(RGB);
                 }
                 break;
             case 'p':
-                if (mode.visCode != SSTV_ROBOT_36 && mode.visCode != SSTV_ROBOT_72) {
-                    monSstv.tx(mode);
-                    monSstv.sendImg();
+                monSstv.tx(mode);
+                if (mode.visCode == SSTV_ROBOT_36 || mode.visCode == SSTV_ROBOT_72 || mode.visCode == SSTV_PD_50 || mode.visCode == SSTV_PD_90) {
+                    monSstv.sendImg(YUV);
+                } else {
+                    monSstv.sendImg(RGB);
                 }
                 break;
             case 'r':
