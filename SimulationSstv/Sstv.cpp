@@ -171,12 +171,15 @@ Dds()
 {
 sampleFreq=SAMPLING_FREQUENCY;
 rapport=DDS_SAMPLING_FREQUENCY/SAMPLING_FREQUENCY;
+soundout = new Sound();
+hpEn=false;
 }
 
 Sstv::Sstv(const Sstv& orig) {
 }
 
 Sstv::~Sstv() {
+    delete soundout;
 }
 
 void Sstv::setSampleFreq(float _sampleFreq)
@@ -216,15 +219,18 @@ void Sstv::tone(float freq, uint32_t len) {
    
    uint32_t t;
    uint8_t downSampling;
-   char z=0;
+   //char z=0;
    int16_t sample;
     Dds::incrementPhase = Dds::computeIncrementPhase(freq);
         for (t = 0; t < len; t++) {
             downSampling = Dds::simulationInteruption();            
             if (Dds::compteur==idx){
                 //write_word(fichier,((static_cast<int>(downSampling))<<7)-16384, 2 );
-                sample=((static_cast<int16_t>(downSampling))<<7)-16384;                
-                fichier.write(reinterpret_cast<char*>(&sample), sizeof (int16_t));                
+                sample=((static_cast<int16_t>(downSampling))<<7)-16384;
+                 if (hpEn){
+                  soundout->loadAndPlay(sample);
+                 }
+                fichier.write(reinterpret_cast<char*>(&sample), sizeof (int16_t));               
                 offset-=idx;
                 offset+=rapport;
                 idx=static_cast<uint32_t>(offset);
@@ -323,8 +329,40 @@ void Sstv::initWave(wave *wav){
 
 void Sstv::sendMire(string ficName,const SSTVMode_t &_mode) {
     
-    uint32_t line[320] = {
+    uint32_t line[320*2] = {
     // black
+    0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
+    0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
+
+    // blue
+    0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF,
+    0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF, 0x0000FF,
+
+    // green
+    0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00,
+    0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00, 0x00FF00,
+
+    // cyan
+    0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF,
+    0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF, 0x00FFFF,
+
+    // red
+    0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000,
+    0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000, 0xFF0000,
+
+    // magenta
+    0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF,
+    0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF, 0xFF00FF,
+
+    // yellow
+    0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00,
+    0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00,
+
+    // white
+    0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF,
+    0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF,
+   
+      // black
     0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
     0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
 
@@ -356,6 +394,11 @@ void Sstv::sendMire(string ficName,const SSTVMode_t &_mode) {
     0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF,
     0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF
 };
+    
+    if (hpEn) soundout->begin();
+  
+    
+    
     mode = _mode;    
     fichier.open(ficName, fstream::binary | fstream::out);
  
@@ -408,7 +451,12 @@ void Sstv::sendMire(string ficName,const SSTVMode_t &_mode) {
             cout << "Error occurred at writing time!" << endl;            
         }
         cout << "done!";
+        if (hpEn){
+            soundout->end();
+            soundout->close();
+        }
     }
+    
 }
 
 
@@ -447,7 +495,9 @@ void Sstv::sendBmp(string ficBmp,string ficName,const SSTVMode_t &_mode) {
         cout << "Offset downsampling " << offset <<endl;;       
         idx=static_cast<uint32_t>(offset);
         Dds::raz();
-        
+ 
+          if (hpEn) soundout->begin();
+ 
         sendHeader(); // send synchronization header first
         
         
@@ -468,21 +518,22 @@ void Sstv::sendBmp(string ficBmp,string ficName,const SSTVMode_t &_mode) {
         fichierImage.read((char*) &pixels, imageBmp.tailleImage);
 
     
-        uint32_t line[320];
+        uint32_t line[640]; //320
 
         int n;
         uint32_t coul;
         int ptr,index;
-        ptr=(getPictureHeight()-1)*320*3;
+        //ptr=(getPictureHeight()-1)*320*3;
+        ptr=(getPictureHeight()-1)*640*3;
         index=0;
         for (uint16_t i = 0; i < getPictureHeight(); i++) {
-            for (n = ptr; n < ptr+(320 * 3); n += 3) {
+            for (n = ptr; n < ptr+(640 * 3); n += 3) { //320
                 coul = pixels[n + 2]*256 * 256 + pixels[n + 1]*256 + pixels[n];
                 //cout << hex << coul << endl;
                 line[index++]=coul;
             }
             index=0;
-            ptr-=320*3;
+            ptr-=640*3; //320
             sendLine(line);
         }
     
@@ -501,7 +552,12 @@ void Sstv::sendBmp(string ficBmp,string ficName,const SSTVMode_t &_mode) {
             cout << "Error occurred at writing time!" << endl;            
         }
         cout << "done!";
+          if (hpEn){
+            soundout->end();
+            soundout->close();              
+          }
     }
+    
 }
 
 
@@ -529,3 +585,6 @@ void Sstv::afficheEnTeteImageBmp(enTeteImageBmp imageBmp)
   cout << "nbCouleursImportantes "<< imageBmp.nbCouleursImportantes<< endl;
 }
 
+void Sstv::setHpEn(bool _hpEn){
+ hpEn=_hpEn;   
+}

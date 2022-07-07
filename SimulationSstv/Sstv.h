@@ -26,6 +26,7 @@
 #include "Dds.h"
 #include "wav.h"
 #include "bitmap.h"
+#include "Sound.h"
 
 using namespace std;
 
@@ -111,6 +112,7 @@ public:
     void initWave(wave *wav);
     void sendMire(const string ficName,const SSTVMode_t &_mode);
     void sendBmp(string ficBmp,string ficName,const SSTVMode_t &_mode);
+    void setHpEn(bool _hpEn);
     
 private:
     uint16_t getPictureHeight();  
@@ -130,7 +132,8 @@ private:
     float rapport;
     uint32_t idx;
     float sampleFreq;
-    
+    Sound *soundout;
+    bool hpEn;
 };
 
 #endif /* SSTV_H */
