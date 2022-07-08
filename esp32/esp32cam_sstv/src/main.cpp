@@ -11,6 +11,7 @@
 #include <Arduino.h>
 #include <Camera.h>
 #include "Sstv.h"
+#include "SSTVDisplay.h"
 
 #define CANAL 3
 
@@ -20,11 +21,12 @@ SSTVMode_t mode=Scottie1; //defaut mode
 
 Camera *laCamera;
 Sstv monSstv;
+SSTVDisplay incrustation; // a modifier ou mettre des setters pour la taille de l'image
+                          //pour le moment test 320 pixels de large fixe (voir constructeur)
 
 
 void setup() {
     Serial.begin(115200);
-
 
     pinMode(LED_ROUGE, OUTPUT);
     //pinMode(12, OUTPUT);
@@ -150,12 +152,14 @@ void loop() {
                     Serial.println("YUV565 QVGA");
                     laCamera->init(PIXFORMAT_YUV422, FRAMESIZE_QVGA);
                     laCamera->capturePhoto();
+                    incrustation.drawString(100,30,"F4KMN", laCamera->getBuf(),YUV );
                     monSstv.tx(mode);
                     monSstv.sendCameraYUV(laCamera->getBuf());
                 } else {
                     Serial.println("RGB565 SVGA");
                     laCamera->init(PIXFORMAT_RGB565, FRAMESIZE_QVGA);
                     laCamera->capturePhoto();
+                    incrustation.drawString(100,30,"F4KMN", laCamera->getBuf(),RGB);
                     monSstv.tx(mode);
                     monSstv.sendCameraRGB(laCamera->getBuf());
                 }
