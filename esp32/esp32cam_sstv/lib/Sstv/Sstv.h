@@ -50,7 +50,7 @@
 #define SSTV_TONE_BRIGHTNESS_MAX_L                    2300
 
 // SSTV tones in Hz narrow txing modes
-#define SSTV_TONE_LEADER_N                            2300
+#define SSTV_TONE_LEADER_N                            2100  // dans qsstv 2100 ok alorq que dans la doc 2300 lent au décodage -> erreur doc !!
 #define SSTV_TONE_BREAK_N                             1900
 #define SSTV_TONE_VIS_1_N                             1900
 #define SSTV_TONE_VIS_0_N                             2100
@@ -63,6 +63,7 @@
 #define SSTV_HEADER_BREAK_LENGTH                      10000
 #define SSTV_HEADER_BIT_LENGTH                        30000
 #define SSTV_HEADER_END_LENGTH                        100000
+#define SSTV_HEADER_BIT_NARROW_LENGTH                 22000
 
 
 /*!
@@ -142,7 +143,14 @@ public:
     void tx(const SSTVMode_t &_mode);
     void idle();
     void toneUs(float freq, uint32_t len);    
-    void sendHeaderNarrow();
+    
+    void sendHeaderNarrow(); //test
+    void sendLineYUVNarrow(int idxLine,uint8_t *ptr,imageType imgtype); //test
+    void sendMireNarrow();  //test
+    void sendImgNarrow(); //test
+    void sendCameraYUVNarrow(uint8_t *ptr); //test
+    
+    
     void sendHeaderStandard(); 
     void sendEndVis();
     void sendLineRGB(int idxLine,uint8_t *ptr,imageType imgtype);
@@ -151,7 +159,6 @@ public:
     void sendCameraYUV(uint8_t *ptr);
     void standby();
     void sendMire(modeCoul mCoul);
-    void sendMireNarrow();  //test
     void sendImg(modeCoul mCoul);
     void sendCameraRGB(uint8_t *ptr);
     bool playFmSample();

@@ -143,23 +143,27 @@ void loop() {
             case 'e':
                 mode = MP73N;
                 Serial.println("Mode MP73-N");
-                monSstv.tx(mode);
-                monSstv.sendMireNarrow();
+                //monSstv.tx(mode);
+                
                 break;
             case 'k':
                 laCamera->reset(10);
-                if (mode.visCode == SSTV_ROBOT_36 || mode.visCode == SSTV_ROBOT_72 || mode.visCode == SSTV_PD_50 || mode.visCode == SSTV_PD_90) {
+                if (mode.visCode == SSTV_ROBOT_36 || mode.visCode == SSTV_ROBOT_72 || mode.visCode == SSTV_PD_50 || mode.visCode == SSTV_PD_90 || mode.visCode == SSTV_MP_73_N) {
                     Serial.println("YUV565 QVGA");
                     laCamera->init(PIXFORMAT_YUV422, FRAMESIZE_QVGA);
                     laCamera->capturePhoto();
-                    incrustation.drawString(100,30,"F4KMN", laCamera->getBuf(),YUV );
+                    incrustation.drawString(100, 30, "F4KMN", laCamera->getBuf(), YUV);
                     monSstv.tx(mode);
-                    monSstv.sendCameraYUV(laCamera->getBuf());
+                    if (mode.visCode == SSTV_MP_73_N) {
+                        monSstv.sendCameraYUVNarrow(laCamera->getBuf());
+                    } else {
+                        monSstv.sendCameraYUV(laCamera->getBuf());
+                    }
                 } else {
-                    Serial.println("RGB565 SVGA");
+                    Serial.println("RGB565 QVGA");
                     laCamera->init(PIXFORMAT_RGB565, FRAMESIZE_QVGA);
                     laCamera->capturePhoto();
-                    incrustation.drawString(100,30,"F4KMN", laCamera->getBuf(),RGB);
+                    incrustation.drawString(100, 30, "F4KMN", laCamera->getBuf(), RGB);
                     monSstv.tx(mode);
                     monSstv.sendCameraRGB(laCamera->getBuf());
                 }
@@ -169,6 +173,8 @@ void loop() {
                 monSstv.tx(mode);
                 if (mode.visCode == SSTV_ROBOT_36 || mode.visCode == SSTV_ROBOT_72 || mode.visCode == SSTV_PD_50 || mode.visCode == SSTV_PD_90) {
                     monSstv.sendMire(YUV);
+                } else if (mode.visCode == SSTV_MP_73_N) {
+                    monSstv.sendMireNarrow();
                 } else {
                     monSstv.sendMire(RGB);
                 }
@@ -177,6 +183,8 @@ void loop() {
                 monSstv.tx(mode);
                 if (mode.visCode == SSTV_ROBOT_36 || mode.visCode == SSTV_ROBOT_72 || mode.visCode == SSTV_PD_50 || mode.visCode == SSTV_PD_90) {
                     monSstv.sendImg(YUV);
+                } else if (mode.visCode == SSTV_MP_73_N) {
+                    monSstv.sendImgNarrow();
                 } else {
                     monSstv.sendImg(RGB);
                 }

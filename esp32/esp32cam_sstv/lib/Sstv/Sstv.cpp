@@ -242,7 +242,7 @@ const SSTVMode_t MP73N{
     SSTV_MP_73_N,
     320,
     256,
-    140,
+    437,        //140ms/320=0.4375
     6,
     {
         {GENERIC, 9000, 1900},
@@ -316,6 +316,9 @@ void Sstv::toneUs(float freq, uint32_t len) {
     portEXIT_CRITICAL(&timerMux);
 }
 
+//**********************************************************************************
+//* Méthodes de test en NARROW (provisoire)
+
 /**
    @brief   Sstv::sendHeaderStandard()
    @details envoi le code VIS qui identifie le mode de transmission sstv
@@ -325,18 +328,144 @@ void Sstv::toneUs(float freq, uint32_t len) {
 
 void Sstv::sendHeaderNarrow() {
   int i,l;
-  int t=0x5C256D;  //manque ce calcul avec mode.visCode
+  int code=0x54056D; //010101 000000 010101 101101 code initial sur 24 bits
+  int vis=mode.visCode;
+  vis=vis << 12;
+  code=code|vis;
+  vis=vis << 6;
+  code=code^vis;
+  Serial.print("Vis code: ");
+  Serial.println(code,HEX);  //0x5C256D; pour SSTV_MP_73_N
+
     l=24;
-    toneUs(1900,300000);
-    toneUs(2100,100000);
-    toneUs(1900,22000); // startbit
+    toneUs(SSTV_TONE_BREAK_N,SSTV_HEADER_LEADER_LENGTH);
+    toneUs(SSTV_TONE_LEADER_N,SSTV_HEADER_END_LENGTH);
+    toneUs(SSTV_TONE_BREAK_N,SSTV_HEADER_BIT_NARROW_LENGTH); // startbit
     for (i=0;i<l;i++)
     {
-      if((t&1)==1) toneUs(1900,22000);
-      else toneUs(2100,22000);
-      t>>=1;
+      if((code&1)==1) toneUs(SSTV_TONE_VIS_1_N,SSTV_HEADER_BIT_NARROW_LENGTH);
+      else toneUs(SSTV_TONE_VIS_0_N,SSTV_HEADER_BIT_NARROW_LENGTH);
+      code>>=1;
     }  
 }
+
+void Sstv::sendLineYUVNarrow(int idxLine, uint8_t *ptr, imageType imgtype) {
+    // send all tones in sequence
+    uint16_t color = 0;
+    const word *addPgm;
+    if (imgtype == PROG_MEM) {
+        if (idxLine < 0) {
+            addPgm = mireYUV;
+            idxLine = 0;
+        } else {
+            addPgm = imageTestYUV;
+        }
+    }
+
+    for (uint8_t i = 0; i < mode.numTones; i++) {
+        if ((mode.tones[i].tt == GENERIC) && (mode.tones[i].len > 0)) {
+            // sync/porch tones
+            toneUs(mode.tones[i].freq, mode.tones[i].len);
+        } else {
+            // scan lines
+            if (mode.visCode == SSTV_MP_73_N) {
+                switch (mode.tones[i].tt) {
+                    case(SCAN_Y_EVEN):
+                        for (uint16_t j = 0; j < mode.width; j++) {
+                            if (imgtype == PROG_MEM) color = pgm_read_word(&(addPgm[idxLine + j])) >> 8; //mire
+                            else color = ptr[j * 2]; //ligne paire
+                            toneUs(SSTV_TONE_BRIGHTNESS_MIN_N + ((float) color ), mode.scanPixelLen);
+                        }
+                        break;
+                    case(SCAN_R_Y):
+                        for (uint16_t j = 0; j < mode.width / 2; j++) {
+                            //color=128;
+                            if (imgtype == PROG_MEM) color = pgm_read_word(&(addPgm[idxLine + j * 2 + 1])) & 0xff;
+                            else color = (ptr[j * 4 + 3] + ptr[mode.width * 2 + j * 4 + 3]) / 2; //moyenne des 2 V0 verticale
+                            toneUs(SSTV_TONE_BRIGHTNESS_MIN_N + ((float) color ), mode.scanPixelLen * 2);
+                        }
+                        break;
+                    case(SCAN_Y_ODD):
+                        for (uint16_t j = 0; j < mode.width; j++) {
+                            if (imgtype == PROG_MEM) color = pgm_read_word(&(addPgm[idxLine + j])) >> 8;
+                            else color = ptr[mode.width * 2 + j * 2]; //ligne impaire
+                            toneUs(SSTV_TONE_BRIGHTNESS_MIN_N + ((float) color ), mode.scanPixelLen);
+                        }
+                        break;
+                    case(SCAN_B_Y):
+                        for (uint16_t j = 0; j < mode.width / 2; j++) {
+                            //color=128;
+                            if (imgtype == PROG_MEM) color = pgm_read_word(&(addPgm[idxLine + j * 2])) & 0xff;
+                            else color = (ptr[j * 4 + 1] + ptr[mode.width * 2 + j * 4 + 1]) / 2; //moyenne des 2 U0 verticale
+                            toneUs(SSTV_TONE_BRIGHTNESS_MIN_N + ((float) color), mode.scanPixelLen * 2);
+                        }
+                        break;
+                    case(GENERIC):
+                        break;
+                }
+            }
+
+        }
+    }
+}
+
+
+void Sstv::sendMireNarrow()
+{
+  Serial.print(F("[SSTV] Sending narrow mire vis picture Narrow ... "));
+    sendHeaderNarrow();
+    uint16_t i;
+    if (mode.visCode == SSTV_MP_73_N) {
+        Serial.println("match");
+        for (i = 0; i < mode.height / 2; i++) {
+            sendLineYUVNarrow(-1, NULL, PROG_MEM); //for pattern                
+        }
+    }
+    standby(); // turn off transmitter
+    Serial.println(F("done!"));
+}
+
+void Sstv::sendImgNarrow() {
+    Serial.print(F("[SSTV] Sending test image picture Narrow... "));
+    sendHeaderNarrow(); // send synchronization header first
+    // send all picture lines   
+    uint16_t i;
+    int idxLine = 0;
+        if (mode.visCode == SSTV_MP_73_N) {
+            for (i = 0; i < mode.height / 2; i++) {
+                 sendLineYUVNarrow(idxLine, NULL, PROG_MEM); //for pattern                
+                 idxLine += mode.width*2;
+            }
+        }
+    sendEndVis();
+    standby(); // turn off transmitter
+    Serial.println(F("done!"));
+    //down();
+}
+
+void Sstv::sendCameraYUVNarrow(uint8_t *ptr) {
+    Serial.println(F("[SSTV] Sending camera YUV image picture Narrow... "));
+    sendHeaderNarrow(); // send synchronization header first
+    uint16_t i;
+    // send all picture lines
+    if (mode.visCode == SSTV_MP_73_N) {
+        for (i = 0; i < (mode.height - 16) / 2; i++) {
+            sendLineYUVNarrow(0, ptr, CAMERA);
+            ptr += mode.width * 4; //2 octets par pixels et toutes les 2 lignes
+        }
+        for (i = 0; i < 16 / 2; i++) { //16 lignes manquantes en mire
+            sendLineYUVNarrow(-1, NULL, PROG_MEM); //for pattern                
+        }
+    }
+    sendEndVis();
+    standby(); // turn off transmitter
+    Serial.println(F("done!"));
+    //down();
+}
+
+
+//* Méthodes de test en NARROW SSTV_MP_73_N
+//**********************************************************************************
 
 
 void Sstv::sendHeaderStandard() {
@@ -592,16 +721,7 @@ void IRAM_ATTR Sstv::interuption() {
   portEXIT_CRITICAL_ISR(&timerMux);
 }
 
-void Sstv::sendMireNarrow()
-{
-  Serial.print(F("[SSTV] Sending narrow mire vis picture ... "));
-  sendHeaderNarrow();           
-  if (mode.visCode == SSTV_MP_73_N){
-             //a suivre 
-        }  
-  standby(); // turn off transmitter
-  Serial.println(F("done!"));            
-}
+
 
 /**
    @brief   Sstv::sendMire()
