@@ -1,10 +1,12 @@
 /*
- I2C Slave mode
+ I2C Slave mode test success
  Arduino pro or pro mini
 */
 
 
 #include <Wire.h>
+
+#define I2C_SLAVE 0x70 //must be after 0x30 for esp32cam
 
 //structure pour transférer les coordonnées
 typedef struct
@@ -30,7 +32,7 @@ void setup() {
   Serial.begin(115200);
   pinMode(LED_BUILTIN, OUTPUT);
   
-  Wire.begin(0x10);                // join i2c bus with address 0x10
+  Wire.begin(I2C_SLAVE);                // join i2c bus with address 0x70
   Wire.onRequest(requestEvent);
   coord.latitude=47.890242;
   coord.longitude=0.276770;
