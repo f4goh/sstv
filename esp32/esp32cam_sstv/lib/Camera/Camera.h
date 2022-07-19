@@ -58,6 +58,8 @@ public:
     bool SaveSD(String name = "picture", String ext = "jpg");
     bool capturePhoto();
     
+    void frameback();
+    
     uint8_t * getBuf();
     size_t getLen();
     size_t getwidth();

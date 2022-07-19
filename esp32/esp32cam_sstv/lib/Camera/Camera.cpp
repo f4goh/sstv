@@ -217,6 +217,15 @@ bool Camera::SaveSD(String name,  String ext) {
  * @brief  capture a frame  
  * @return true if OK
  */
+void Camera::frameback() {
+    esp_camera_fb_return(fb);
+}
+
+
+/**
+ * @brief  capture a frame  
+ * @return true if OK
+ */
 bool Camera::capturePhoto() {
 
     fb = NULL;

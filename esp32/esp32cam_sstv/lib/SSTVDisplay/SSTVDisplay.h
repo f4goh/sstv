@@ -17,6 +17,16 @@
 #include <Arduino.h>
 #include "SSTVDisplayFonts.h"
 #include "Sstv.h"
+#include <Wire.h>
+#include "driver/i2c.h"
+
+#define SCCB_FREQ               CONFIG_SCCB_CLK_FREQ  /*!< I2C master frequency*/
+#define WRITE_BIT               I2C_MASTER_WRITE      /*!< I2C master write */
+#define READ_BIT                I2C_MASTER_READ       /*!< I2C master read */
+#define ACK_CHECK_EN            0x1                   /*!< I2C master will check ack from slave*/
+#define ACK_CHECK_DIS           0x0                   /*!< I2C master will not check ack from slave */
+#define ACK_VAL                 0x0                   /*!< I2C ack value */
+#define NACK_VAL                0x1                   /*!< I2C nack value */
 
 
 // Header Values
@@ -31,6 +41,12 @@
 #define HEIGHT_POS 1
 #define FIRST_CHAR_POS 2
 #define CHAR_NUM_POS 3
+
+//#define I2C_SDA 26 //déja utilisé via la caméra
+//#define I2C_SCL 27
+#define I2C_SLAVE 0x70
+#define I2C_PORT_NUM I2C_NUM_1
+
 
 typedef enum  {
   TEXT_ALIGN_LEFT = 0,
@@ -53,6 +69,13 @@ typedef struct  {
   uint8_t v;
 }colorYUV_t;
 
+
+typedef struct
+{
+  float latitude;
+  float longitude;
+  uint32_t altitude;
+} coordonnees;
 
 
 typedef char (*FontTableLookupFunction)(const uint8_t ch);
@@ -79,6 +102,9 @@ public:
     
     // Set the function that will convert utf-8 to font table index
     void setFontTableLookupFunction(FontTableLookupFunction function);
+    
+    void addPosition();
+    void I2Ctest();
     
     
     

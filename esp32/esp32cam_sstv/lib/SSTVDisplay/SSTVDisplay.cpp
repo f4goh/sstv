@@ -10,6 +10,10 @@
  * 
  * Created on 8 juillet 2022, 06:15
  * https://www.mikekohn.net/file_formats/yuv_rgb_converter.php
+ * https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/i2c.html
+ * https://github.com/espressif/esp-idf/tree/v4.3/examples/peripherals/i2c
+ * https://github.com/espressif/esp32-camera/blob/master/driver/sccb.c
+ * 
  */
 
 #include "SSTVDisplay.h"
@@ -21,7 +25,7 @@ SSTVDisplay::SSTVDisplay() {
 	textAlignment = TEXT_ALIGN_LEFT; //non testé
 	//fontData = ArialMT_Plain_24;
         fontData = DejaVu_Sans_Bold_40; //ajouter setter
-        fontTableLookupFunction = DefaultFontTableLookup;
+        fontTableLookupFunction = DefaultFontTableLookup;        
 }
 
 SSTVDisplay::SSTVDisplay(const SSTVDisplay& orig) {
@@ -169,6 +173,66 @@ uint16_t SSTVDisplay::drawStringInternal(int16_t xMove, int16_t yMove, const cha
   }
   return charCount;
 }
+
+void SSTVDisplay::addPosition() {
+    coordonnees coord;
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    esp_err_t ret = ESP_FAIL;
+    i2c_port_t i2c_port = I2C_PORT_NUM; //a priori c'est le num 1 qui est utilisé pour la caméra et déja initialisé
+    
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, ( I2C_SLAVE << 1 ) | READ_BIT, ACK_CHECK_EN);
+        
+    i2c_master_read(cmd, (uint8_t*) &coord ,12, I2C_MASTER_LAST_NACK);
+    i2c_master_stop(cmd);
+    ret = i2c_master_cmd_begin(i2c_port, cmd, 1000 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+    if(ret != ESP_OK) {
+        Serial.println("erreur");
+    }
+    /*
+    //wire
+    Wire.requestFrom(I2C_SLAVE, sizeof (coordonnees)); // Request 12 bytes from slave device number 0x70
+    int i;
+    for (i = 0; i < sizeof (coordonnees); i++) {
+        *((char*) &coord + i) = Wire.read();
+    }
+    */
+    Serial.println(coord.latitude);
+    Serial.println(coord.longitude);
+    Serial.println(coord.altitude);
+
+}
+
+void SSTVDisplay::I2Ctest() {
+     i2c_port_t i2c_port = I2C_PORT_NUM;
+     uint8_t address;
+    printf("     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f\r\n");
+    for (int i = 0; i < 128; i += 16) {
+        printf("%02x: ", i);
+        for (int j = 0; j < 16; j++) {
+            fflush(stdout);
+            address = i + j;
+            i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+            i2c_master_start(cmd);
+            i2c_master_write_byte(cmd, (address << 1) | WRITE_BIT, ACK_CHECK_EN);
+            i2c_master_stop(cmd);
+            esp_err_t ret = i2c_master_cmd_begin(i2c_port, cmd, 50 / portTICK_RATE_MS);
+            i2c_cmd_link_delete(cmd);
+            if (ret == ESP_OK) {
+                printf("%02x ", address);
+            } else if (ret == ESP_ERR_TIMEOUT) {
+                printf("UU ");
+            } else {
+                printf("-- ");
+            }
+        }
+        printf("\r\n");
+    }
+   
+}
+
+
 
 /*
  codage de la police

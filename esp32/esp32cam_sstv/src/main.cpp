@@ -15,14 +15,13 @@
 
 #define CANAL 3
 
-
 SSTVMode_t mode=Scottie1; //defaut mode
-
 
 Camera *laCamera;
 Sstv monSstv;
 SSTVDisplay incrustation; // a modifier ou mettre des setters pour la taille de l'image
                           //pour le moment test 320 pixels de large fixe (voir constructeur)
+
 
 
 void setup() {
@@ -53,7 +52,11 @@ void setup() {
             delay(1000);
         }
     }
-      
+    
+    Serial.println("I2C scanner");
+    incrustation.I2Ctest();
+    
+    
     Serial.println("Setup done");
     //digitalWrite(LED_ROUGE, HIGH);
     
@@ -70,7 +73,8 @@ void setup() {
     Serial.println("b Mode Robot72 YUV");    
     Serial.println("c Mode PD50 YUV");    
     Serial.println("d Mode PD90 YUV");    
-    Serial.println("e Mode MP73-N YUV");    
+    Serial.println("e Mode MP73-N YUV");
+    Serial.println("f Add position from arduino pro mini");   
     
     Serial.println("k tx picture with camera");
     Serial.println("m tx mire RGB or YUV");
@@ -144,8 +148,11 @@ void loop() {
                 mode = MP73N;
                 Serial.println("Mode MP73-N");
                 //monSstv.tx(mode);
-                
                 break;
+            case 'f':
+                incrustation.addPosition();
+                break;
+
             case 'k':
                 laCamera->reset(10);
                 if (mode.visCode == SSTV_ROBOT_36 || mode.visCode == SSTV_ROBOT_72 || mode.visCode == SSTV_PD_50 || mode.visCode == SSTV_PD_90 || mode.visCode == SSTV_MP_73_N) {
@@ -167,7 +174,7 @@ void loop() {
                     monSstv.tx(mode);
                     monSstv.sendCameraRGB(laCamera->getBuf());
                 }
-                //laCamera->frameback();  //??
+                laCamera->frameback();
                 break;
             case 'm':
                 monSstv.tx(mode);
@@ -196,7 +203,7 @@ void loop() {
                 if (laCamera->capturePhoto()) {
                     laCamera->SaveSD("photo");
                     Serial.printf("len  : %d octets \n", laCamera->getLen());
-                    Serial.printf("size : %d x %d \n", laCamera->getwidth(), laCamera->getheight());
+                    Serial.printf("size : %d x %d \n", laCamera->getwidth(), laCamera->getheight());                    
                 }
                 break;
             case 'i':
@@ -215,3 +222,24 @@ void loop() {
     }
 }
 
+
+
+/*
+#define DISPLAY_ERROR false 
+#define USER_PIN      false
+
+
+
+void setup() {
+    Serial.begin(115200);
+   
+
+    Wire.begin();
+    Wire.setClock(50000);
+    
+}
+
+void loop() {
+    
+}
+*/
