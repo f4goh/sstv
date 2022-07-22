@@ -1,10 +1,12 @@
 /* 
  * File:   main.cpp
  * Author: philippe SIMIER Touchard washington Le Mans
+           Anthony LE CREN F4GOH KF4GOH Touchard washington Le Mans
  *
  * Created on 25 juin 2022, 18:05
  * FRAMESIZE_QVGA  // 320 x 240
  * FRAMESIZE_VGA   // 640x480
+ * 40 m : 7,033-7,040 7.171Mhz
  */
 
 
@@ -13,7 +15,7 @@
 #include "Sstv.h"
 #include "SSTVDisplay.h"
 
-#define CANAL 3
+
 
 SSTVMode_t mode=Scottie1; //defaut mode
 
@@ -24,19 +26,11 @@ SSTVDisplay incrustation; // a modifier ou mettre des setters pour la taille de 
 
 
 
+
 void setup() {
     Serial.begin(115200);
 
-    pinMode(LED_ROUGE, OUTPUT);
-    //pinMode(12, OUTPUT);
-    //pinMode(16, OUTPUT);
-
-    ledcSetup(CANAL, 1000, 8); // canal = 0, frequence = 5000 Hz, resolution = 12 bits
-    ledcAttachPin(LED_ROUGE, CANAL); // broche 18, canal 0.
-    ledcWrite(CANAL, 128); //  canal = 0, rapport cyclique = 2048
-
-    //digitalWrite(LED_ROUGE, LOW);
-
+   
     laCamera = new Camera;
 
        if (!laCamera->init(PIXFORMAT_JPEG, FRAMESIZE_VGA)) {
@@ -53,9 +47,12 @@ void setup() {
         }
     }
     
-    Serial.println("I2C scanner");
-    incrustation.I2Ctest();
+    //Serial.println("I2C scanner");
+    //incrustation.I2Ctest();
     
+    Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
+    Serial.printf("SPIRam Total heap %d, SPIRam Free Heap %d\n", ESP.getPsramSize(), ESP.getFreePsram());
+  
     
     Serial.println("Setup done");
     //digitalWrite(LED_ROUGE, HIGH);
@@ -82,7 +79,11 @@ void setup() {
     Serial.println("r save picture on msd card");
     Serial.println("i tx idle frequency tone break 1200Hz");
     Serial.println("s stop idle\n");
-    Serial.println("t test FM Narrow Sample\n");
+    Serial.println("t test FM Narrow Sample");
+    Serial.println("u test AM Sample");
+    
+    Serial.println("+ increase gain by +10");
+    Serial.println("- decrease gain by -10");
     
 }
 
@@ -146,14 +147,15 @@ void loop() {
                 break;
             case 'e':
                 mode = MP73N;
-                Serial.println("Mode MP73-N");
-                //monSstv.tx(mode);
+                Serial.println("Mode MP73-N");                
                 break;
             case 'f':
                 incrustation.addPosition();
                 break;
 
             case 'k':
+                Serial.print("FREE HEAP :");
+                Serial.println(ESP.getFreeHeap());
                 laCamera->reset(10);
                 if (mode.visCode == SSTV_ROBOT_36 || mode.visCode == SSTV_ROBOT_72 || mode.visCode == SSTV_PD_50 || mode.visCode == SSTV_PD_90 || mode.visCode == SSTV_MP_73_N) {
                     Serial.println("YUV565 QVGA");
@@ -165,18 +167,20 @@ void loop() {
                         monSstv.sendCameraYUVNarrow(laCamera->getBuf());
                     } else {
                         monSstv.sendCameraYUV(laCamera->getBuf());
-                    }
+                    }                    
                 } else {
                     Serial.println("RGB565 QVGA");
                     laCamera->init(PIXFORMAT_RGB565, FRAMESIZE_QVGA);
                     laCamera->capturePhoto();
-                    incrustation.drawString(100, 30, "F4KMN", laCamera->getBuf(), RGB);
+                    incrustation.drawString(100, 30, "F4KMN", laCamera->getBuf(), RGB);                    
                     monSstv.tx(mode);
-                    monSstv.sendCameraRGB(laCamera->getBuf());
+                    monSstv.sendCameraRGB(laCamera->getBuf());                
                 }
                 laCamera->frameback();
                 break;
             case 'm':
+                Serial.print("FREE HEAP :");
+                Serial.println(ESP.getFreeHeap());               
                 monSstv.tx(mode);
                 if (mode.visCode == SSTV_ROBOT_36 || mode.visCode == SSTV_ROBOT_72 || mode.visCode == SSTV_PD_50 || mode.visCode == SSTV_PD_90) {
                     monSstv.sendMire(YUV);
@@ -184,9 +188,11 @@ void loop() {
                     monSstv.sendMireNarrow();
                 } else {
                     monSstv.sendMire(RGB);
-                }
+                }                
                 break;
             case 'p':
+                Serial.print("FREE HEAP :");
+                Serial.println(ESP.getFreeHeap());                
                 monSstv.tx(mode);
                 if (mode.visCode == SSTV_ROBOT_36 || mode.visCode == SSTV_ROBOT_72 || mode.visCode == SSTV_PD_50 || mode.visCode == SSTV_PD_90) {
                     monSstv.sendImg(YUV);
@@ -194,52 +200,43 @@ void loop() {
                     monSstv.sendImgNarrow();
                 } else {
                     monSstv.sendImg(RGB);
-                }
+                }       
                 break;
             case 'r':
+                Serial.print("FREE HEAP :");
+                Serial.println(ESP.getFreeHeap());
                 laCamera->reset(10);
                 laCamera->init(PIXFORMAT_JPEG, FRAMESIZE_VGA);
                 Serial.println("JPEG VGA");
                 if (laCamera->capturePhoto()) {
                     laCamera->SaveSD("photo");
-                    Serial.printf("len  : %d octets \n", laCamera->getLen());
-                    Serial.printf("size : %d x %d \n", laCamera->getwidth(), laCamera->getheight());                    
+                    Serial.printf("len  : %d octets \n\r", laCamera->getLen());
+                    Serial.printf("size : %d x %d \n\r", laCamera->getwidth(), laCamera->getheight());                    
                 }
                 break;
             case 'i':
                 Serial.println("test idle");
+                //ledcWrite(CANAL_GAIN, gain);
                 monSstv.idle();
                 break;
             case 's':
-                Serial.println("standby");
-                monSstv.standby();
+                Serial.println("standby an gain off");
+                monSstv.standby();                                
                 break;
              case 't':
                 Serial.println("Play FM Narrow sample 8bit Fech 8000Hz");
                 monSstv.playFmSample();
                 break;
+             case 'u':
+                Serial.println("Play AM Narrow sample 8bit Fech 8000Hz");
+                monSstv.playAMSample();
+                break;
+            case '+':
+                monSstv.addGain(10);
+                break;
+            case '-':
+                monSstv.addGain(-10);
+                break;
         }
     }
 }
-
-
-
-/*
-#define DISPLAY_ERROR false 
-#define USER_PIN      false
-
-
-
-void setup() {
-    Serial.begin(115200);
-   
-
-    Wire.begin();
-    Wire.setClock(50000);
-    
-}
-
-void loop() {
-    
-}
-*/

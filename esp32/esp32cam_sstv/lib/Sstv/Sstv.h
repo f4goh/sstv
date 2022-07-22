@@ -15,6 +15,8 @@
 
 #ifndef SSTV_H
 #define SSTV_H
+
+#include <Arduino.h>
 #include <FS.h>     // SD Card ESP32
 #include <SD.h> // SD Card ESP32
 #include "AD9850SPI.h"
@@ -22,7 +24,10 @@
 #include "mire.h"
 
 
-#define FREQ 7000000
+#define FREQ 7041000  //40m
+//#define  FREQ 14240000  //20m
+//#define  FREQ 14260000  //20m
+
 //#define SYNC 13
 
 // VIS codes
@@ -64,6 +69,13 @@
 #define SSTV_HEADER_BIT_LENGTH                        30000
 #define SSTV_HEADER_END_LENGTH                        100000
 #define SSTV_HEADER_BIT_NARROW_LENGTH                 22000
+
+#define CANAL_GAIN 3
+
+#define CONSIGNE_GAIN 130 //a re mesurer sur 40m
+//#define CONSIGNE_GAIN 210 //a revoir 20m
+
+#define PWM_PIN 33
 
 
 /*!
@@ -142,7 +154,8 @@ public:
     virtual ~Sstv();
     void tx(const SSTVMode_t &_mode);
     void idle();
-    void toneUs(float freq, uint32_t len);    
+    void toneUs(float freq, uint32_t len);
+    void modPWM(uint8_t _pwmValue, uint32_t len);
     
     void sendHeaderNarrow(); //test
     void sendLineYUVNarrow(int idxLine,uint8_t *ptr,imageType imgtype); //test
@@ -162,6 +175,9 @@ public:
     void sendImg(modeCoul mCoul);
     void sendCameraRGB(uint8_t *ptr);
     bool playFmSample();
+    bool playAMSample();
+    void addGain(int8_t deltaGain);
+    
     
     SSTVMode_t mode;
 private:
@@ -176,6 +192,7 @@ private:
     volatile bool irqDone;
     volatile long frequency;
     volatile long tPeriod;
+    volatile uint8_t pwmValue; //gain sur le pa
 
 };
 

@@ -33,7 +33,6 @@
 #define PCLK_GPIO_NUM 22
 #define FLASH_GPIO_NUM 4
 
-#define LED_ROUGE 33
 
 class Camera {
     

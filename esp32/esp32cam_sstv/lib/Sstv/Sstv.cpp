@@ -6,8 +6,40 @@
  * doc
  * https://github.com/xdsopl/qsstv/tree/master/qsstv/sstv
  * https://github.com/brainwagon/sstv-encoders
- * 
- */
+ * ssb 
+ * http://pe1nnz.nl.eu.org/2013/05/direct-ssb-generation-on-pll.html
+
+ * pour 7Mhz mesure avec porteuse (mesures a refaire)
+gain Volts puissance(W) courant
+0   0
+10  0.266 
+20  0.396  
+30  0.524  
+40  0.654
+50  0.782  
+60  0.912
+70  1.040  
+80  1.170
+90  1.298
+100 1.428 <0.1W 10mA
+110 1.556 <0.1W 20mA
+120 1.686 <0.1W 30mA
+130 1.814 <0.1W 50mA
+140 1.944 0.1   70mA
+150 2.072 0.2   100mA
+160 2.202 0.4   128mA
+170 2.330 0.6   161mA
+180 2.460 0.9   200mA
+190 2.588 1.3   230mA
+200 2.718 1.8   260mA
+210 2.846 2.3   290mA
+220 2.976 2.7   318mA
+230 3.104 3.1   339mA
+240 3.234 3.3   350mA
+250 3.298 3.4   357mA
+255 3.298 3.7   360mA
+*/
+
 
 #include "Sstv.h"
 
@@ -260,9 +292,15 @@ timer(NULL)
 {
  //begin();  //report à la méthode tx
  //pinMode(SYNC,OUTPUT);
- anchor = this;
- timer = timerBegin(0, 80, true);
- timerAttachInterrupt(timer, Sstv::marshall, true); 
+    anchor = this;
+    timer = timerBegin(0, 80, true);
+    timerAttachInterrupt(timer, Sstv::marshall, true);
+    pwmValue = CONSIGNE_GAIN;
+    pinMode(PWM_PIN, OUTPUT);
+    ledcSetup(CANAL_GAIN, 50000, 8); // canal = 3, frequence = 50000 Hz, resolution = 8 bits
+    ledcAttachPin(PWM_PIN, CANAL_GAIN); // broche 33, canal 0.
+    ledcWrite(CANAL_GAIN, 0); //  canal = 3, rapport cyclique = 0    
+
 }
 
 Sstv::Sstv(const Sstv& orig) {
@@ -285,6 +323,8 @@ void Sstv::tx(const SSTVMode_t &_mode) {
     timerAlarmWrite(timer, 1000, true);
     timerAlarmEnable(timer);
     timerMux = portMUX_INITIALIZER_UNLOCKED;
+    pwmValue = CONSIGNE_GAIN;
+    
 }
 
 /**
@@ -296,6 +336,7 @@ void Sstv::tx(const SSTVMode_t &_mode) {
 void Sstv::idle() {
   begin();
   setfreq(FREQ + SSTV_TONE_BREAK_L,0);
+  ledcWrite(CANAL_GAIN, pwmValue);
 }
 
 
@@ -315,6 +356,25 @@ void Sstv::toneUs(float freq, uint32_t len) {
     irqDone=0;
     portEXIT_CRITICAL(&timerMux);
 }
+
+/**
+   @brief   Sstv::modPWM(uint8_t _pwmValue, uint32_t len)
+   @details déchenche une temporisation via l'interruption timer
+   @param   pwm : valeur du PWM (0 à 255)
+            len : durée en µs   
+ */
+
+void Sstv::modPWM(uint8_t _pwmValue, uint32_t len) {
+    while (!irqDone) {
+    }
+    portENTER_CRITICAL(&timerMux);
+    pwmValue = _pwmValue;
+    tPeriod = len;
+    irqDone=0;
+    portEXIT_CRITICAL(&timerMux);
+}
+
+
 
 //**********************************************************************************
 //* Méthodes de test en NARROW (provisoire)
@@ -699,7 +759,8 @@ void Sstv::sendLineYUV(int idxLine, uint8_t *ptr, imageType imgtype) {
  */
 
 void Sstv::standby(){
-  timerAlarmDisable(timer);  
+  timerAlarmDisable(timer);
+  ledcWrite(CANAL_GAIN, 0); //  canal = 3, rapport cyclique = 0      
   AD9850SPI::setfreq(0,0);
 }
 
@@ -715,6 +776,7 @@ void Sstv::marshall() {
 void IRAM_ATTR Sstv::interuption() {
   //digitalWrite(SYNC, digitalRead(SYNC) ^ 1);
   setfreq(frequency,0); //0
+  ledcWrite(CANAL_GAIN, pwmValue); //  réglage du gain pour la modulation AM
   timerAlarmWrite(timer, tPeriod, true);
   portENTER_CRITICAL_ISR(&timerMux);
   irqDone=1;
@@ -877,13 +939,67 @@ bool Sstv::playFmSample() {
         }
         standby(); // turn off transmitter
         
-        Serial.println(F("play done!"));
+        Serial.println(F("play Fm done!"));
         free(samp);
 
     }
    
 
     return true;
+}
+
+bool Sstv::playAMSample() {
+
+    String path = "/f4kmn.raw";
+    int cpt = 0;
+    int8_t* samp = (int8_t*)ps_malloc(20000);
+    
+    File file = SDFileSystem.open(path.c_str(), FILE_READ);
+
+    if (!file) {
+        Serial.println("Failed to open file in writing mode");
+        return false;
+    } else {
+        while (file.available()) {
+            samp[cpt] = file.read();
+            cpt++;
+        }
+        file.close();
+        Serial.println(F("read done!"));
+        delay(100);  //a diminuer ?
+        begin();
+        frequency = FREQ;
+        setfreq(frequency,0);
+        irqDone = 0;
+        timerAlarmWrite(timer, 1000, true);
+        timerAlarmEnable(timer);
+        timerMux = portMUX_INITIALIZER_UNLOCKED;
+        for (cpt = 0; cpt < 20000; cpt++) {
+            // fonction map à tester pour recentrer la linéarité de la commande du mos ? au lieu du +128
+            // peut être obligatoire en ssb ?
+            modPWM(samp[cpt]+128,125);       //Tech=125µs->8000hz             
+        }
+        standby(); // turn off transmitter
+        
+        
+        Serial.println(F("play AM done!"));
+        free(samp);
+
+    }
+   
+
+    return true;
+}
+
+
+//ajoute ou diminue le gain pour les mesures de puissances
+
+void Sstv::addGain(int8_t deltaGain) {
+
+    pwmValue += deltaGain;
+    Serial.print("Gain is");
+    Serial.println(pwmValue);
+    //ledcWrite(CANAL_GAIN, pwmValue);    
 }
 
 
