@@ -6,8 +6,9 @@
  * doc
  * https://github.com/xdsopl/qsstv/tree/master/qsstv/sstv
  * https://github.com/brainwagon/sstv-encoders
- * ssb 
+ * ssb code by Guido PE1NNZ from usdx.ino
  * http://pe1nnz.nl.eu.org/2013/05/direct-ssb-generation-on-pll.html
+ * 
 
  * pour 7Mhz mesure avec porteuse (mesures a refaire)
 gain Volts puissance(W) courant
@@ -288,10 +289,9 @@ const SSTVMode_t MP73N{
 
 
 Sstv::Sstv() :
-timer(NULL)
-{
- //begin();  //report à la méthode tx
- //pinMode(SYNC,OUTPUT);
+timer(NULL) {
+    //begin();  //report à la méthode tx
+    //pinMode(SYNC,OUTPUT);
     anchor = this;
     timer = timerBegin(0, 80, true);
     timerAttachInterrupt(timer, Sstv::marshall, true);
@@ -299,8 +299,11 @@ timer(NULL)
     pinMode(PWM_PIN, OUTPUT);
     ledcSetup(CANAL_GAIN, 50000, 8); // canal = 3, frequence = 50000 Hz, resolution = 8 bits
     ledcAttachPin(PWM_PIN, CANAL_GAIN); // broche 33, canal 0.
-    ledcWrite(CANAL_GAIN, 0); //  canal = 3, rapport cyclique = 0    
-
+    ledcWrite(CANAL_GAIN, 0); //  canal = 3, rapport cyclique = 0
+    dc=0;
+    z1=0;
+    for (uint16_t i = 0; i != 256; i++) // refresh LUT based on pwm_min, pwm_max
+        lut[i] = (i * (PWM_MAX - PWM_MIN)) / 255 + PWM_MIN;
 }
 
 Sstv::Sstv(const Sstv& orig) {
@@ -935,7 +938,7 @@ bool Sstv::playFmSample() {
         timerAlarmEnable(timer);
         timerMux = portMUX_INITIALIZER_UNLOCKED;
         for (cpt = 0; cpt < 20000; cpt++) {            
-            toneUs(((float) samp[cpt])*40, 125); //Tech=125µs->8000hz     Coef 10000khz / 256 (8 bits) =39.6
+            toneUs(((float) samp[cpt])*40, T_SAMP_TX); //Tech=125µs->8000hz     Coef 10000khz / 256 (8 bits) =39.6
         }
         standby(); // turn off transmitter
         
@@ -977,7 +980,7 @@ bool Sstv::playAMSample() {
         for (cpt = 0; cpt < 20000; cpt++) {
             // fonction map à tester pour recentrer la linéarité de la commande du mos ? au lieu du +128
             // peut être obligatoire en ssb ?
-            modPWM(samp[cpt]+128,125);       //Tech=125µs->8000hz             
+            modPWM(lut[samp[cpt]+128],T_SAMP_TX);       //Tech=125µs->8000hz             
         }
         standby(); // turn off transmitter
         
@@ -991,7 +994,6 @@ bool Sstv::playAMSample() {
     return true;
 }
 
-
 //ajoute ou diminue le gain pour les mesures de puissances
 
 void Sstv::addGain(int8_t deltaGain) {
@@ -1001,6 +1003,136 @@ void Sstv::addGain(int8_t deltaGain) {
     Serial.println(pwmValue);
     //ledcWrite(CANAL_GAIN, pwmValue);    
 }
+
+
+/*
+ SSB voice transmit test
+ */
+
+int16_t Sstv::arctan3(int16_t q, int16_t i)  // error ~ 0.8 degree
+{ // source: [1] http://www-labs.iro.umontreal.ca/~mignotte/IFT2425/Documents/EfficientApproximationArctgFunction.pdf
+//#define _atan2(z)  (_UA/8 + _UA/44) * z  // very much of a simplification...not accurate at all, but fast
+#define _atan2(z)  (_UA/8 + _UA/22 - _UA/22 * z) * z  //derived from (5) [1]   note that atan2 can overflow easily so keep _UA low
+//#define _atan2(z)  (_UA/8 + _UA/24 - _UA/24 * z) * z  //derived from (7) [1]
+  int16_t r;
+  if(abs(q) > abs(i))
+    r = _UA / 4 - _atan2(abs(i) / abs(q));        // arctan(z) = 90-arctan(1/z)
+  else
+    r = (i == 0) ? 0 : _atan2(abs(q) / abs(i));   // arctan(z)
+  r = (i < 0) ? _UA / 2 - r : r;                  // arctan(-z) = -arctan(z)
+  return (q < 0) ? -r : r;                        // arctan(-z) = -arctan(z)
+}
+
+void Sstv::hilbert(int16_t in,int16_t *i,int16_t *q) {
+    uint8_t j;
+    for (j = 0; j != 15; j++) v[j] = v[j + 1];
+    
+    //modes digitaux 
+    //int16_t ac = in;                      
+    //dc = (ac + (7) * dc) / (7 + 1); // hpf: slow average
+  
+    //voix 
+    int16_t ac = in * 2;             //   6dB gain (justified since lpf/hpf is losing -3dB)
+    ac = ac + z1;                    // lpf
+    z1 = (in - (2) * z1) / (2 + 1);  // lpf: notch at Fs/2 (alias rejecting)
+    dc = (ac + (2) * dc) / (2 + 1);  // hpf: slow average
+    v[15] = (ac - dc);               // hpf (dc decoupling)
+  
+    
+    
+    v[15] = (ac - dc) / 2; // hpf (dc decoupling)  (-6dB gain to compensate for DC-noise)
+    *i = v[7] * 2; // 6dB gain for i, q  (to prevent quanitization issues in hilbert transformer and phase calculation, corrected for magnitude calc)
+    *q = ((v[0] - v[14]) * 2 + (v[2] - v[12]) * 8 + (v[4] - v[10]) * 21 + (v[6] - v[8]) * 16) / 64 + (v[6] - v[8]); // Hilbert transform, 40dB side-band rejection in 400..1900Hz (@4kSPS) when used in image-rejection scenario; (Hilbert transform require 5 additional bits)
+}
+
+void Sstv::ssb(int16_t in,ssbMode mode) {
+    int16_t i, q;
+    uint8_t drive=2; //coef d'amplification en puissance
+    
+    hilbert(in, &i, &q);
+    uint16_t amp = magn(i, q);
+
+    int16_t phase = arctan3(q, i);
+
+
+    int16_t dp = phase - prev_phase; // phase difference and restriction  
+    prev_phase = phase;
+    if (dp < 0) dp = dp + _UA;
+
+    
+  //amp = amp << (drive);
+  amp = ((amp > 255) || (drive == 8)) ? 255 : amp; // clip or when drive=8 use max output
+  amp = lut[amp];
+  
+    
+
+    //frequency = FREQ + dp*8; //* ( _F_SAMP_TX / _UA); //manque FREQ + ou -
+    //pwmValue = amp;
+    //Serial.printf("%d %d\n\r",dp,amp);
+
+    
+    while (!irqDone) {
+    }
+    portENTER_CRITICAL(&timerMux);
+    pwmValue = amp;
+    if (mode == USB) {
+        frequency = FREQ + dp * FREQ_DIFF; //USB
+    } else {
+        frequency = FREQ - dp * FREQ_DIFF; //LSB
+    }
+    tPeriod = T_SAMP_TX;
+    irqDone = 0;
+    portEXIT_CRITICAL(&timerMux);
+
+}
+
+
+
+bool Sstv::playSSBSample(ssbMode mode) {
+
+    String path = "/f4kmn.raw";
+    int cpt = 0;
+    int8_t* samp = (int8_t*)ps_malloc(20000);
+    
+    File file = SDFileSystem.open(path.c_str(), FILE_READ);
+
+    if (!file) {
+        Serial.println("Failed to open file in writing mode");
+        return false;
+    } else {
+        while (file.available()) {
+            samp[cpt] = file.read();
+            cpt++;
+        }
+        file.close();
+        Serial.println(F("read done!"));
+        delay(100);  //a diminuer ?
+        
+        begin();
+        frequency = FREQ;
+        setfreq(frequency,0);
+        irqDone = 0;
+        
+        timerAlarmWrite(timer, 1000, true);
+        timerAlarmEnable(timer);
+        timerMux = portMUX_INITIALIZER_UNLOCKED;
+        for (cpt = 0; cpt < 20000; cpt++) {
+            ssb(samp[cpt],mode);            
+        }
+        standby(); // turn off transmitter
+        
+        
+        Serial.println(F("play SSB done!"));
+        free(samp);
+
+    }
+   
+
+    return true;
+}
+
+
+
 
 
 Sstv* Sstv::anchor = NULL;

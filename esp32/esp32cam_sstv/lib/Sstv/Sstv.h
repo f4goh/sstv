@@ -78,6 +78,26 @@
 #define PWM_PIN 33
 
 
+#define magn(i, q) (abs(i) > abs(q) ? abs(i) + abs(q) / 4 : abs(q) + abs(i) / 4) // approximation of: magnitude = sqrt(i*i + q*q); error 0.95dB
+#define F_SAMP_TX 8000  //in Hz
+#define T_SAMP_TX 125  //in µs  T_SAMP_TX=1/F_SAMP_TX
+
+#define FREQ_DIFF 8 //frequency-difference based on phase-difference
+
+// unit angle; integer representation of one full circle turn or 2pi radials or 360 degrees, should be a integer divider of F_SAMP_TX and maximized to have higest precision
+#define _UA  F_SAMP_TX/FREQ_DIFF //8000/8=1000 
+//#define _UA  1000
+
+#define PWM_MIN 60
+#define PWM_MAX 250
+
+
+typedef enum {
+    LSB = 0,
+    USB
+} ssbMode;
+
+
 /*!
   \struct tone_t
   \brief Structure to save data about tone.
@@ -176,6 +196,7 @@ public:
     void sendCameraRGB(uint8_t *ptr);
     bool playFmSample();
     bool playAMSample();
+    bool playSSBSample(ssbMode mode);
     void addGain(int8_t deltaGain);
     
     
@@ -184,6 +205,10 @@ private:
     hw_timer_t * timer;
     void IRAM_ATTR interuption();
     static void marshall();
+    int16_t arctan3(int16_t q, int16_t i);
+    void hilbert(int16_t in,int16_t *i,int16_t *q);
+    void ssb(int16_t in,ssbMode mode);
+    
     portMUX_TYPE timerMux;
         
     static Sstv* anchor;
@@ -193,6 +218,13 @@ private:
     volatile long frequency;
     volatile long tPeriod;
     volatile uint8_t pwmValue; //gain sur le pa
+    
+    //for ssb voice
+    int16_t v[16];
+    int16_t dc,z1;
+    int16_t prev_phase;
+    uint8_t lut[256];    
+    
 
 };
 
