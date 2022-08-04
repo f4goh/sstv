@@ -80,7 +80,10 @@ void setup() {
     Serial.println("i tx idle frequency tone break 1200Hz");
     Serial.println("s stop idle\n");
     Serial.println("t test FM Narrow Sample");
-    Serial.println("u test AM Sample");
+    Serial.println("u test AM Sample");    
+    Serial.println("v test USB Sample");
+    Serial.println("w test LSB Sample");
+
     
     Serial.println("+ increase gain by +10");
     Serial.println("- decrease gain by -10");
@@ -230,6 +233,14 @@ void loop() {
              case 'u':
                 Serial.println("Play AM Narrow sample 8bit Fech 8000Hz");
                 monSstv.playAMSample();
+                break;
+             case 'v':
+                Serial.println("Play SSB USB sample 8bit Fech 8000Hz");
+                monSstv.playSSBSample(USB);                
+                break;
+             case 'w':
+                Serial.println("Play SSB LSB sample 8bit Fech 8000Hz");
+                monSstv.playSSBSample(LSB);                
                 break;
             case '+':
                 monSstv.addGain(10);
